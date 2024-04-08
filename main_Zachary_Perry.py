@@ -1,0 +1,97 @@
+# Okay this is the script file for the data mining project
+
+
+########################################################################################################################
+# Now we make the web dashboard
+########################################################################################################################
+import pandas as pd
+import numpy as np
+import geopandas as gpd
+from shapely.geometry import Point
+
+# Load the dataset
+file_path = r'C:\Users\Zac\Desktop\Spring 2024 Semester\Visualization\Project_Zachary_Perry\Moving_Violations_Issued_in_August_2023.csv'
+data = pd.read_csv(file_path)
+
+# Replace missing values with np.nan for specified geospatial columns
+columns_to_nan = ['XCOORD', 'YCOORD', 'LATITUDE', 'LONGITUDE']
+data[columns_to_nan] = data[columns_to_nan].replace('', np.nan).astype(float)
+
+# Dropping sparse and empty columns
+data = data.drop(columns=['DISPOSITION_DATE', 'BODY_STYLE'])
+
+# Handling missing values in 'ACCIDENT_INDICATOR', converting 'N/A' to np.nan
+# Assuming missing values should be treated as missing information, not as False
+data['ACCIDENT_INDICATOR'] = data['ACCIDENT_INDICATOR'].replace({'Y': True, 'N': False, 'N/A': np.nan})
+
+# Converting dates to datetime format
+data['ISSUE_DATE'] = pd.to_datetime(data['ISSUE_DATE'])
+data['GIS_LAST_MOD_DTTM'] = pd.to_datetime(data['GIS_LAST_MOD_DTTM'])
+
+# Ensuring 'OBJECTID' is int64
+data['OBJECTID'] = data['OBJECTID'].astype('int64')
+
+# Ensuring 'LOCATION', 'ISSUING_AGENCY_CODE', 'ISSUING_AGENCY_NAME', and 'ISSUING_AGENCY_SHORT' are string
+data['LOCATION'] = data['LOCATION'].astype(str)
+data['ISSUING_AGENCY_CODE'] = data['ISSUING_AGENCY_CODE'].astype(str)
+data['ISSUING_AGENCY_NAME'] = data['ISSUING_AGENCY_NAME'].astype(str)
+data['ISSUING_AGENCY_SHORT'] = data['ISSUING_AGENCY_SHORT'].astype(str)
+
+# Ensuring 'VIOLATION_CODE', 'VIOLATION_PROCESS_DESC', and 'PLATE_STATE' are categorical
+data['VIOLATION_CODE'] = data['VIOLATION_CODE'].astype('category')
+data['VIOLATION_PROCESS_DESC'] = data['VIOLATION_PROCESS_DESC'].astype('category')
+data['PLATE_STATE'] = data['PLATE_STATE'].astype('category')
+
+# Numeric conversions with error coercion
+data['FINE_AMOUNT'] = pd.to_numeric(data['FINE_AMOUNT'], errors='coerce')
+data['TOTAL_PAID'] = pd.to_numeric(data['TOTAL_PAID'], errors='coerce')
+data['RP_MULT_OWNER_NO'] = pd.to_numeric(data['RP_MULT_OWNER_NO'], errors='coerce')
+
+# Handling 'ISSUE_TIME' conversion with padding and to datetime
+data['ISSUE_TIME'] = data['ISSUE_TIME'].astype(str).str.zfill(4)
+data['ISSUE_TIME'] = pd.to_datetime(data['ISSUE_TIME'], format='%H%M', errors='coerce')
+
+# GeoDataFrame creation for spatial data
+geometry = [Point(xy) for xy in zip(data['LONGITUDE'], data['LATITUDE'])]
+gdf = gpd.GeoDataFrame(data, geometry=geometry)
+gdf.drop(columns=['LATITUDE', 'LONGITUDE'], inplace=True)
+
+# Converting 'MAR_ID' to string and 'GIS_LAST_MOD_DTTM' to date
+data['MAR_ID'] = data['MAR_ID'].astype(str)
+data['GIS_LAST_MOD_DTTM'] = data['GIS_LAST_MOD_DTTM'].dt.date
+
+# Drop ACCIDENT_INDICATOR column
+data = data.drop(columns=['ACCIDENT_INDICATOR'])
+# Remove rows where XCOORD, YCOORD, LATITUDE, or LONGITUDE is null
+data = data.dropna(subset=['XCOORD', 'YCOORD', 'LATITUDE', 'LONGITUDE'])
+
+print("Data cleaning and type conversion completed.")
+
+
+print(data.columns)
+
+# Define a function to determine the classification of each column
+def classify_column(column):
+    dtype = column.dtype
+    if dtype == 'object' or dtype.name == 'category':
+        return 'Categorical'
+    elif dtype == 'int64' or dtype == 'float64':
+        return 'Numerical'
+    elif 'datetime' in str(dtype):  # Check if dtype contains 'datetime'
+        if 'timezone' in str(dtype):  # Check if timezone information is present
+            return 'Datetime (Timezone-aware)'
+        else:
+            return 'Datetime'
+    else:
+        return 'Other'
+
+# Create a dictionary to store column classifications
+column_classifications = {}
+
+# Apply the classification function to each column and store the result in the dictionary
+for column in data.columns:
+    column_classifications[column] = classify_column(data[column])
+
+# Display the column classifications
+for column, classification in column_classifications.items():
+    print(f"Column '{column}' has classification '{classification}'")
