@@ -1,17 +1,50 @@
 # Okay this is the script file for the data mining project
 
-
-########################################################################################################################
-# Now we make the web dashboard
-########################################################################################################################
 import pandas as pd
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
+from scipy.stats import shapiro
 
 # Load the dataset
 file_path = r'C:\Users\Zac\Desktop\Spring 2024 Semester\Visualization\Project_Zachary_Perry\Moving_Violations_Issued_in_August_2023.csv'
 data = pd.read_csv(file_path)
+
+############################################################
+# EDA and descriptive statistics
+############################################################
+
+
+# Display basic information about the dataset (Optional)
+print(data.info())
+print(data.head())
+
+# Calculate the number of missing values in each row
+missing_values_per_row = data.isnull().sum(axis=1)
+missing_values_summary = missing_values_per_row.describe()
+
+# Compute descriptive statistics for each column
+descriptive_stats = data.describe(include='all', datetime_is_numeric=True)
+
+# Adjusted normality tests to handle columns with insufficient non-null values or variance
+adjusted_normality_results = {}
+for column in data.select_dtypes(include=['float64', 'int64']).columns:
+    # Dropping null values and ensuring at least two unique values for the test
+    non_null_sample = data[column].dropna()
+    if non_null_sample.nunique() > 1:
+        # Limiting the sample size to 5000 for practicality
+        sample = non_null_sample.sample(n=min(5000, len(non_null_sample)), random_state=1)
+        stat, p_value = shapiro(sample)
+        adjusted_normality_results[column] = {'Statistic': stat, 'p-value': p_value}
+
+# Output the results
+print("Missing Values per Row Summary:\n", missing_values_summary)
+print("\nDescriptive Statistics:\n", descriptive_stats)
+print("\nNormality Test Results:\n", adjusted_normality_results)
+
+############################################################
+# This is the cleaning section established as necessary by the EDA that showed it was not clean at all
+############################################################
 
 # Replace missing values with np.nan for specified geospatial columns
 columns_to_nan = ['XCOORD', 'YCOORD', 'LATITUDE', 'LONGITUDE']
@@ -67,7 +100,6 @@ data = data.dropna(subset=['XCOORD', 'YCOORD', 'LATITUDE', 'LONGITUDE'])
 
 print("Data cleaning and type conversion completed.")
 
-
 print(data.columns)
 
 # Define a function to determine the classification of each column
@@ -95,3 +127,36 @@ for column in data.columns:
 # Display the column classifications
 for column, classification in column_classifications.items():
     print(f"Column '{column}' has classification '{classification}'")
+
+############################################################
+# EDA and descriptive statistics on cleaned data
+############################################################
+# This should have no missing values but we did not make the data normal so they should all still fail
+
+# Ensure proper data types for datetime columns
+data['ISSUE_DATE'] = pd.to_datetime(data['ISSUE_DATE'])
+data['GIS_LAST_MOD_DTTM'] = pd.to_datetime(data['GIS_LAST_MOD_DTTM']).dt.date
+data['ISSUE_TIME'] = pd.to_datetime(data['ISSUE_TIME'], format='%H%M', errors='coerce')
+
+# Re-compute the EDA and descriptive statistics on the cleaned dataset
+missing_values_per_row_cleaned = data.isnull().sum(axis=1)
+missing_values_summary_cleaned = missing_values_per_row_cleaned.describe()
+descriptive_stats_cleaned = data.describe(include='all', datetime_is_numeric=True)
+
+# Adjusted normality tests on the cleaned data
+adjusted_normality_results_cleaned = {}
+for column in data.select_dtypes(include=['float64', 'int64']).columns:
+    non_null_sample = data[column].dropna()
+    if non_null_sample.nunique() > 1:
+        sample = non_null_sample.sample(n=min(5000, len(non_null_sample)), random_state=1)
+        stat, p_value = shapiro(sample)
+        adjusted_normality_results_cleaned[column] = {'Statistic': stat, 'p-value': p_value}
+
+# Output the results
+print("Missing Values per Row Summary (Cleaned):\n", missing_values_summary_cleaned)
+print("\nDescriptive Statistics (Cleaned):\n", descriptive_stats_cleaned)
+print("\nNormality Test Results (Cleaned):\n", adjusted_normality_results_cleaned)
+
+############################################################
+# Next section
+############################################################
