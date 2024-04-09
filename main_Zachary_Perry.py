@@ -14,8 +14,7 @@ data = pd.read_csv(file_path)
 # EDA and descriptive statistics
 ############################################################
 
-
-# Display basic information about the dataset (Optional)
+# Display basic information about the dataset
 print(data.info())
 print(data.head())
 
@@ -32,7 +31,7 @@ for column in data.select_dtypes(include=['float64', 'int64']).columns:
     # Dropping null values and ensuring at least two unique values for the test
     non_null_sample = data[column].dropna()
     if non_null_sample.nunique() > 1:
-        # Limiting the sample size to 5000 for practicality
+        # Limiting the sample size to 5000 for practicality (its alot of rows we can just randomley sample)
         sample = non_null_sample.sample(n=min(5000, len(non_null_sample)), random_state=1)
         stat, p_value = shapiro(sample)
         adjusted_normality_results[column] = {'Statistic': stat, 'p-value': p_value}
@@ -158,5 +157,43 @@ print("\nDescriptive Statistics (Cleaned):\n", descriptive_stats_cleaned)
 print("\nNormality Test Results (Cleaned):\n", adjusted_normality_results_cleaned)
 
 ############################################################
-# Next section
+# Next section EDA Question one : How many moving violations were issued in each district in August 2023?
 ############################################################
+violations_per_district = data['ISSUING_AGENCY_NAME'].value_counts()
+print(violations_per_district)
+
+import geopandas as gpd
+import contextily as ctx
+import matplotlib.pyplot as plt
+
+# Ensure LATITUDE and LONGITUDE are floats
+data['LATITUDE'] = data['LATITUDE'].astype(float)
+data['LONGITUDE'] = data['LONGITUDE'].astype(float)
+
+# Create a GeoDataFrame
+gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE))
+
+# Convert your DataFrame to a GeoDataFrame
+gdf = gpd.GeoDataFrame(
+    data, geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE))
+
+# Set the CRS for WGS84 (lat/long)
+gdf.crs = 'epsg:4326'
+
+# Convert to Web Mercator for contextily
+gdf = gdf.to_crs(epsg=3857)
+
+# Plotting
+fig, ax = plt.subplots(figsize=(10, 10))
+gdf.plot(ax=ax, color='red', markersize=5, alpha=0.5)
+
+# Add basemap
+ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
+
+# Adjust the map extent to your data points
+ax.set_xlim(gdf.total_bounds[[0, 2]])
+ax.set_ylim(gdf.total_bounds[[1, 3]])
+
+plt.title('Moving Violations in Washington D.C., August 2023')
+plt.axis('off')
+plt.show()
