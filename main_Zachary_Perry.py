@@ -159,41 +159,168 @@ print("\nNormality Test Results (Cleaned):\n", adjusted_normality_results_cleane
 ############################################################
 # Next section EDA Question one : How many moving violations were issued in each district in August 2023?
 ############################################################
-violations_per_district = data['ISSUING_AGENCY_NAME'].value_counts()
-print(violations_per_district)
 
-import geopandas as gpd
-import contextily as ctx
+##################
+# # First I simply want them over a map as this is good geospatial data
+#
+# violations_per_district = data['ISSUING_AGENCY_NAME'].value_counts()
+# print(violations_per_district)
+#
+# import geopandas as gpd
+# import contextily as ctx
+# import matplotlib.pyplot as plt
+#
+# # Ensure LATITUDE and LONGITUDE are floats
+# data['LATITUDE'] = data['LATITUDE'].astype(float)
+# data['LONGITUDE'] = data['LONGITUDE'].astype(float)
+#
+# # Create a GeoDataFrame
+# gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE))
+#
+# # Convert your DataFrame to a GeoDataFrame
+# gdf = gpd.GeoDataFrame(
+#     data, geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE))
+#
+# # Set the CRS for WGS84 (lat/long)
+# gdf.crs = 'epsg:4326'
+#
+# # Convert to Web Mercator for contextily
+# gdf = gdf.to_crs(epsg=3857)
+#
+# # Plotting
+# fig, ax = plt.subplots(figsize=(10, 10))
+# gdf.plot(ax=ax, color='red', markersize=5, alpha=0.5)
+#
+# # Add basemap
+# ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
+#
+# # Adjust the map extent to your data points
+# ax.set_xlim(gdf.total_bounds[[0, 2]])
+# ax.set_ylim(gdf.total_bounds[[1, 3]])
+#
+# plt.title('Moving Violations in Washington D.C., August 2023')
+# plt.axis('off')
+# plt.show()
+
+###############
+# Okay and now we can aggregate them to zip code
+
+# from tqdm import tqdm
+# from uszipcode import SearchEngine
+#
+# # Initialize the SearchEngine
+# search = SearchEngine()
+#
+# # Pre-load Washington D.C. zip codes
+# dc_zip_codes = [zipcode.zipcode for zipcode in search.by_city_and_state(city="Washington", state="DC")]
+#
+# # Function to get zip codes from latitude and longitude
+# def get_zipcode(lat, lon):
+#     # Narrow down the search to a 5-mile radius, assuming we're centralized around D.C.
+#     possible_zipcodes = search.by_coordinates(lat, lon, radius=5, returns=None)
+#     # Filter the results to include only D.C. zip codes
+#     for zipcode in possible_zipcodes:
+#         if zipcode.zipcode in dc_zip_codes:
+#             return zipcode.zipcode
+#     return None
+#
+# # Apply the function to your data with a progress bar
+# tqdm.pandas(desc="Finding Zip Codes")  # Initialize tqdm with pandas
+# data['zipcode'] = data.apply(lambda row: get_zipcode(row['LATITUDE'], row['LONGITUDE']), axis=1)
+#
+# # Calculate the average fine amount by zip code
+# average_fines_by_zip = data.groupby('zipcode')['FINE_AMOUNT'].mean()
+#
+# # Display the results
+# print(average_fines_by_zip)
+
+############################################################
+# EDA Question Two : Is there correlation present in average moving violations and GDP per capita of the ward?
+############################################################
+
 import matplotlib.pyplot as plt
 
-# Ensure LATITUDE and LONGITUDE are floats
-data['LATITUDE'] = data['LATITUDE'].astype(float)
-data['LONGITUDE'] = data['LONGITUDE'].astype(float)
-
-# Create a GeoDataFrame
-gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE))
-
-# Convert your DataFrame to a GeoDataFrame
+# Convert your DataFrame to a GeoDataFrame with the appropriate coordinates
 gdf = gpd.GeoDataFrame(
-    data, geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE))
+    data,
+    geometry=gpd.points_from_xy(data.LONGITUDE, data.LATITUDE),
+    crs='epsg:4326'
+)
 
-# Set the CRS for WGS84 (lat/long)
-gdf.crs = 'epsg:4326'
+# Load the ward boundary shapefile
+ward_shapefile_path = 'C:\\Users\\Zac\\Desktop\\Spring 2024 Semester\\Data Mining\\Data_Mining_Project\\Wards_from_2022.shp'
+wards = gpd.read_file(ward_shapefile_path)
 
-# Convert to Web Mercator for contextily
-gdf = gdf.to_crs(epsg=3857)
+# Perform the spatial join to determine which ward each violation occurred in
+data_with_wards = gpd.sjoin(gdf, wards, how='left', op='within')
 
-# Plotting
-fig, ax = plt.subplots(figsize=(10, 10))
-gdf.plot(ax=ax, color='red', markersize=5, alpha=0.5)
+# Assuming the ward identifier column in your shapefile is named 'WARD_ID'
+average_fines_by_ward = data_with_wards.groupby('WARD_ID')['FINE_AMOUNT'].mean().reset_index()
 
-# Add basemap
-ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
+# Merge the average fines back onto the ward shapefile for mapping
+wards_with_fines = wards.merge(average_fines_by_ward, on='WARD_ID', how='left')
 
-# Adjust the map extent to your data points
-ax.set_xlim(gdf.total_bounds[[0, 2]])
-ax.set_ylim(gdf.total_bounds[[1, 3]])
-
-plt.title('Moving Violations in Washington D.C., August 2023')
-plt.axis('off')
+# Plotting the gradient map
+fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+wards_with_fines.plot(column='FINE_AMOUNT', ax=ax, legend=True,
+                      legend_kwds={'label': "Average Fine Amount by Ward",
+                                   'orientation': "horizontal"})
+plt.title('Gradient Map of Average Fine Amounts by Ward in Washington D.C.')
 plt.show()
+
+# # Now we run a correlation test on the aggregated FINE_AMOUNT and the per capita income data for each ward
+# # First we have to web scrape since I cannot find the ward income data in a nice tableimport requests
+# # import pandas as pd
+#
+# import requests
+#
+#
+# def get_income_data_by_wards():
+#     url = "https://api.censusreporter.org/1.0/data/show/latest"
+#     table_id = "B19301"
+#     ward_geo_ids = ["61000US11001", "61000US11002", "61000US11003", "61000US11004",
+#                     "61000US11005", "61000US11006", "61000US11007", "61000US11008"]
+#     params = {
+#         'table_ids': table_id,
+#         'geo_ids': ','.join(ward_geo_ids)
+#     }
+#     response = requests.get(url, params=params)
+#     incomes = []
+#     if response.status_code == 200:
+#         data = response.json()
+#         for geo_id in ward_geo_ids:
+#             income = data['data'][geo_id][table_id]['estimate']['B19301001']
+#             ward_number = geo_id[-2:]  # Assuming the last two characters represent the ward number
+#             incomes.append({'WARD_ID': 'Ward ' + ward_number, 'PER_CAPITA_INCOME': income})
+#         return incomes
+#     else:
+#         print("Failed to retrieve data:", response.status_code)
+#         return None
+#
+# # Save the incomes in a DataFrame
+# income_data = pd.DataFrame(get_income_data_by_wards())
+#
+# import geopandas as gpd
+# import matplotlib.pyplot as plt
+#
+# # Assume 'income_data' is the DataFrame obtained from the previous step
+# gdf = gpd.GeoDataFrame(
+#     income_data,
+#     geometry=gpd.points_from_xy(income_data.LONGITUDE, income_data.LATITUDE),
+#     crs='epsg:4326'
+# )
+#
+# ward_shapefile_path = 'C:\\Users\\Zac\\Desktop\\Spring 2024 Semester\\Data Mining\\Data_Mining_Project\\Wards_from_2022.shp'
+# wards = gpd.read_file(ward_shapefile_path)
+#
+# # Merge the income data back onto the ward shapefile for mapping
+# wards_with_income = wards.merge(income_data, on='WARD_ID', how='left')
+#
+# # Plotting the gradient map for Per Capita Income
+# fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+# wards_with_income.plot(column='PER_CAPITA_INCOME', ax=ax, legend=True,
+#                        legend_kwds={'label': "Per Capita Income by Ward",
+#                                     'orientation': "horizontal"})
+# plt.title('Gradient Map of Per Capita Income by Ward in Washington D.C.')
+# plt.show()
+
