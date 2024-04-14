@@ -7,7 +7,7 @@ from shapely.geometry import Point
 from scipy.stats import shapiro
 
 # Load the dataset
-file_path = r'C:\Users\Zac\Desktop\Spring 2024 Semester\Visualization\Project_Zachary_Perry\Moving_Violations_Issued_in_August_2023.csv'
+file_path = r'Moving_Violations_Issued_in_August_2023.csv'
 data = pd.read_csv(file_path)
 
 ############################################################
@@ -156,3 +156,4 @@ print("Missing Values per Row Summary (Cleaned):\n", missing_values_summary_clea
 print("\nDescriptive Statistics (Cleaned):\n", descriptive_stats_cleaned)
 print("\nNormality Test Results (Cleaned):\n", adjusted_normality_results_cleaned)
 
+data.to_csv("processed.csv", index=False)
