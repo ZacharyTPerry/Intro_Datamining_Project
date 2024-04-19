@@ -257,6 +257,8 @@ data_with_wards = gpd.sjoin(gdf, wards, how='left', op='within')
 # Assuming the ward identifier column in your shapefile is named 'WARD_ID'
 average_fines_by_ward = data_with_wards.groupby('WARD_ID')['FINE_AMOUNT'].mean().reset_index()
 
+average_fines_by_ward['WARD_ID'] = 'Ward ' + average_fines_by_ward['WARD_ID'].astype(str)
+
 # Merge the average fines back onto the ward shapefile for mapping
 wards_with_fines = wards.merge(average_fines_by_ward, on='WARD_ID', how='left')
 
@@ -317,52 +319,85 @@ wards_with_income = wards.merge(income_data, on='WARD_ID', how='left')
 
 #################
 # Okay here we make the 2x1 plot
-
-# Create a figure with two subplots, arranged vertically
-fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 12))
-
-# Plotting the gradient map for fines
-wards_with_fines.plot(column='FINE_AMOUNT', ax=axes[0], legend=True,
-                      legend_kwds={'label': "Average Fine Amount by Ward",
-                                   'orientation': "horizontal"})
-axes[0].set_title('Gradient Map of Average Fine Amounts by Ward in Washington D.C.')
-axes[0].axis('off')  # Optional: Turn off the axis.
-
-# Plotting the gradient map for Per Capita Income
-wards_with_income.plot(column='PER_CAPITA_INCOME', ax=axes[1], legend=True,
-                       legend_kwds={'label': "Per Capita Income by Ward",
-                                    'orientation': "horizontal"})
-axes[1].set_title('Gradient Map of Per Capita Income by Ward in Washington D.C.')
-axes[1].axis('off')  # Optional: Turn off the axis.
-
-plt.tight_layout()  # Adjust layout to fit both subplots neatly
-plt.show()
+#
+# # Create a figure with two subplots, arranged vertically
+# fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 12))
+#
+# # Plotting the gradient map for fines
+# wards_with_fines.plot(column='FINE_AMOUNT', ax=axes[0], legend=True,
+#                       legend_kwds={'label': "Average Fine Amount by Ward",
+#                                    'orientation': "horizontal"})
+# axes[0].set_title('Gradient Map of Average Fine Amounts by Ward in Washington D.C.')
+# axes[0].axis('off')  # Optional: Turn off the axis.
+#
+# # Plotting the gradient map for Per Capita Income
+# wards_with_income.plot(column='PER_CAPITA_INCOME', ax=axes[1], legend=True,
+#                        legend_kwds={'label': "Per Capita Income by Ward",
+#                                     'orientation': "horizontal"})
+# axes[1].set_title('Gradient Map of Per Capita Income by Ward in Washington D.C.')
+# axes[1].axis('off')  # Optional: Turn off the axis.
+#
+# plt.tight_layout()  # Adjust layout to fit both subplots neatly
+# plt.show()
 
 ###############
 # Okay and now we get the density of violations by ward
 # Calculate the number of fines per ward
 fines_per_ward = data_with_wards.groupby('WARD_ID').size().reset_index(name='Number of Violations')
 
-# Merge this count back onto the wards GeoDataFrame to maintain the geographic data
-wards_with_fines = wards.merge(fines_per_ward, on='WARD_ID', how='left')
+# Adjust 'WARD_ID' in fines_per_ward to match the format in wards
+fines_per_ward['WARD_ID'] = 'Ward ' + fines_per_ward['WARD_ID'].astype(str)
 
-# Plotting the gradient map
-fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-wards_with_fines.plot(column='Number of Violations', ax=ax, legend=True,
+# Now merge the data
+wards_with_fines_violations = wards.merge(fines_per_ward, on='WARD_ID', how='left')
+#
+# # Plotting the number of violations per ward
+# fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+# wards_with_fines_violations.plot(column='Number of Violations', ax=ax, legend=True,
+#                       legend_kwds={'label': "Number of Violations by Ward",
+#                                    'orientation': "horizontal"},
+#                       missing_kwds={'color': 'lightgrey', 'label': 'Missing data'})
+#
+# ax.set_title('Number of Moving Violations by Ward in Washington D.C.')
+# ax.axis('off')  # Hide the axis
+#
+# plt.show()
+
+#################
+# New 1x3 plot
+# Create a single-row subplot layout with three columns
+fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
+
+# Plotting the gradient map for fines
+wards_with_fines.plot(column='FINE_AMOUNT', ax=axes[0], legend=True,
+                      legend_kwds={'label': "Average Fine Amount by Ward",
+                                   'orientation': "horizontal"})
+axes[0].set_title('Average Fine Amounts by Ward')
+axes[0].axis('off')  # Hide the axis
+
+# Plotting the gradient map for Per Capita Income
+wards_with_income.plot(column='PER_CAPITA_INCOME', ax=axes[1], legend=True,
+                       legend_kwds={'label': "Per Capita Income by Ward",
+                                    'orientation': "horizontal"})
+axes[1].set_title('Per Capita Income by Ward')
+axes[1].axis('off')  # Hide the axis
+
+# Plotting the number of violations per ward
+wards_with_fines_violations.plot(column='Number of Violations', ax=axes[2], legend=True,
                       legend_kwds={'label': "Number of Violations by Ward",
                                    'orientation': "horizontal"},
                       missing_kwds={'color': 'lightgrey', 'label': 'Missing data'})
+axes[2].set_title('Number of Moving Violations by Ward')
+axes[2].axis('off')  # Hide the axis
 
-# Optional enhancements
-ax.set_title('Number of Moving Violations by Ward in Washington D.C.')
-ax.axis('off')  # Hide the axis
-
+plt.tight_layout()  # Adjust layout to fit all subplots neatly
 plt.show()
+
 
 ##############################
 # Section
 ##############################
-#
+# Already done above
 # # Now we bring in the per capita of each ward and plot them 2x1
 # # Create a figure with 1x2 subplots
 # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
@@ -381,48 +416,90 @@ plt.show()
 #
 # plt.tight_layout()
 # plt.show()
-#
-# # Now we find the correllation between income and fine amounts
-#
-# # Merge the two datasets on 'WARD_ID'
-# data_merged = pd.merge(wards_with_fines[['WARD_ID', 'FINE_AMOUNT']],
-#                        wards_with_income[['WARD_ID', 'PER_CAPITA_INCOME']],
-#                        on='WARD_ID')
-#
-# # Calculate the correlation
-# correlation = data_merged['FINE_AMOUNT'].corr(data_merged['PER_CAPITA_INCOME'])
-# print("Correlation between fine amounts and per capita income:", correlation)
-#
-# ###########################################################
-# #EDA Question Three : Is there a solid model to predict where the moving violation will be?
-# ###########################################################
-#
-# #A random forest attempt
-#
-# import pandas as pd
-# from sklearn.model_selection import train_test_split
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.metrics import classification_report
-# from sklearn.preprocessing import LabelEncoder
-#
-# # Assuming 'data' is your combined DataFrame with all features including 'WARD_ID'
-# X = data.drop('WARD_ID', axis=1)  # Features
-# y = data['WARD_ID']  # Target variable
-#
-# # Encode categorical variables if needed
-# le = LabelEncoder()
-# y_encoded = le.fit_transform(y)
-#
-# # Split the data into training and testing sets
-# X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
-#
-# # Initialize and train the Random Forest model
-# model = RandomForestClassifier(n_estimators=100, random_state=42)
-# model.fit(X_train, y_train)
-#
-# # Predict on the test set
-# y_pred = model.predict(X_test)
-#
-# # Evaluate the model
-# print(classification_report(y_test, y_pred, target_names=le.classes_))
-#
+
+# Now we find the correllation between income and fine amounts
+
+# Merge the two datasets on 'WARD_ID'
+data_merged = pd.merge(wards_with_fines[['WARD_ID', 'FINE_AMOUNT']],
+                       wards_with_income[['WARD_ID', 'PER_CAPITA_INCOME']],
+                       on='WARD_ID')
+
+# Calculate the correlation
+correlation = data_merged['FINE_AMOUNT'].corr(data_merged['PER_CAPITA_INCOME'])
+print("Correlation between fine amounts and per capita income:", correlation)
+
+###########################################################
+#EDA Question Three : Is there a solid model to predict where the moving violation will be?
+###########################################################
+
+#A random forest attempt
+
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+
+# Data preprocessing
+
+# Checking for NaN values in the 'WARD' column
+nan_in_ward = data_with_wards['WARD'].isnull().any()
+
+print("Are there NaN values in the 'WARD' column?", nan_in_ward)
+# drop out of ward values there are 7 of 100000
+if nan_in_ward:
+    print("Number of NaN values in 'WARD':", data_with_wards['WARD'].isnull().sum())
+    # Optional: Drop rows with NaN in 'WARD' if you decide to remove these entries
+    data_with_wards = data_with_wards.dropna(subset=['WARD'])
+
+# Ensure ISSUE_TIME is an integer or categorical
+data_with_wards['ISSUE_TIME'] = pd.to_datetime(data_with_wards['ISSUE_TIME'], format='%H%M', errors='coerce').dt.hour
+data_with_wards['ISSUE_TIME'] = data_with_wards['ISSUE_TIME'].fillna(data_with_wards['ISSUE_TIME'].mode()[0])
+
+# Assuming 'data' is already loaded and you've identified which columns are categorical
+le = LabelEncoder()
+categorical_cols = ['ISSUING_AGENCY_NAME', 'VIOLATION_CODE', 'VIOLATION_PROCESS_DESC', 'PLATE_STATE']  # Update as necessary
+for col in categorical_cols:
+    data_with_wards[col] = le.fit_transform(data_with_wards[col].astype(str))
+
+# Feature selection (excluding direct geographical features)
+features = data_with_wards[['ISSUING_AGENCY_NAME', 'ISSUE_TIME', 'DISPOSITION_CODE', 'FINE_AMOUNT', 'TOTAL_PAID', 'VIOLATION_CODE', 'VIOLATION_PROCESS_DESC', 'PLATE_STATE']]
+
+# Target variable
+target = data_with_wards['WARD']  # Ensure 'WARD' is your target column
+
+# Ensure no NaNs across features
+features = features.dropna()
+
+# Synchronize indices of features and target
+features, target = features.align(target, join='inner', axis=0)
+
+# Splitting the dataset
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+
+# Grid Search for Hyperparameter Tuning
+param_grid = {
+    'n_estimators': [50, 100, 150],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10]
+}
+
+grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42),
+                           param_grid=param_grid,
+                           scoring='accuracy',
+                           cv=3,  # Using 3-fold cross-validation
+                           verbose=1,
+                           n_jobs=-1)
+
+grid_search.fit(X_train, y_train)
+
+# Output the best parameters and the best score
+print("Best parameters:", grid_search.best_params_)
+print("Best cross-validation accuracy: {:.2f}".format(grid_search.best_score_))
+
+# Evaluate on the test set
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test)
+print("Test set accuracy: {:.2f}".format(accuracy_score(y_test, y_pred)))
