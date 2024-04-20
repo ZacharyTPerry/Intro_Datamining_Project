@@ -18,6 +18,11 @@ data = pd.read_csv(file_path)
 print(data.info())
 print(data.head())
 
+missing_values = data.isnull().sum()
+missing_values_table = missing_values.reset_index()
+missing_values_table.columns = ['Column', 'Missing Values']
+print(missing_values_table)
+
 # Calculate the number of missing values in each row
 missing_values_per_row = data.isnull().sum(axis=1)
 missing_values_summary = missing_values_per_row.describe()
@@ -429,7 +434,7 @@ correlation = data_merged['FINE_AMOUNT'].corr(data_merged['PER_CAPITA_INCOME'])
 print("Correlation between fine amounts and per capita income:", correlation)
 
 ###########################################################
-#EDA Question Three : Is there a solid model to predict where the moving violation will be?
+#EDA Question Three : Is there a solid model to predict where the moving violation will be? Which ward?
 ###########################################################
 
 #A random forest attempt
@@ -503,3 +508,80 @@ print("Best cross-validation accuracy: {:.2f}".format(grid_search.best_score_))
 best_model = grid_search.best_estimator_
 y_pred = best_model.predict(X_test)
 print("Test set accuracy: {:.2f}".format(accuracy_score(y_test, y_pred)))
+
+print("Okay we have an accuracy of 30%, which seems terrible at first glance. There is a 12.5% base odds so the model doubles accuracy")
+print("Accuracy could be improved drastically if we had crime statistics such as the amount of cops per ward, crime per ward, and other criminal statistics")
+
+###########################################################
+#EDA Question Three : Can we predict the agency from the code and description?
+###########################################################
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
+
+# Preprocess the data
+encoder = OneHotEncoder(sparse=False, drop='first')  # Drop first to avoid dummy variable trap
+features = encoder.fit_transform(data[['VIOLATION_CODE', 'VIOLATION_PROCESS_DESC']])
+target = data['ISSUING_AGENCY_NAME']
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+
+# Initialize and train the logistic regression model
+logistic_model = LogisticRegression(max_iter=500)  # Adjust max_iter if needed for convergence
+logistic_model.fit(X_train, y_train)
+
+# Predict on the test set
+y_pred = logistic_model.predict(X_test)
+
+# Evaluate the model
+print(classification_report(y_test, y_pred))
+# This is the model with no balancing at all
+
+
+################################
+# Now we look at over and undersampling
+################################
+
+# Encode the categorical data
+encoder = OneHotEncoder(sparse=False, drop='first')
+features = encoder.fit_transform(data[['VIOLATION_CODE', 'VIOLATION_PROCESS_DESC']])
+target = data['ISSUING_AGENCY_NAME']
+
+# Scale the features
+scaler = StandardScaler()
+features_scaled = scaler.fit_transform(features)
+
+# Split the dataset
+X_train, X_test, y_train, y_test = train_test_split(features_scaled, target, test_size=0.2, random_state=42)
+
+# Initialize the oversampler and undersampler
+ros = RandomOverSampler(random_state=42)
+rus = RandomUnderSampler(random_state=42)
+
+# Resample the data
+X_ros, y_ros = ros.fit_resample(X_train, y_train)
+X_rus, y_rus = rus.fit_resample(X_train, y_train)
+
+# Define the logistic regression model with increased iterations and adjusted solver
+model_ros = LogisticRegression(max_iter=1000, solver='saga', C=0.5)
+model_rus = LogisticRegression(max_iter=1000, solver='saga', C=0.5)
+
+# Train the models
+model_ros.fit(X_ros, y_ros)
+model_rus.fit(X_rus, y_rus)
+
+# Make predictions and evaluate the models
+y_pred_ros = model_ros.predict(X_test)
+y_pred_rus = model_rus.predict(X_test)
+
+print("Oversampling Model Evaluation:")
+print(classification_report(y_test, y_pred_ros))
+print("Undersampling Model Evaluation:")
+print(classification_report(y_test, y_pred_rus))
