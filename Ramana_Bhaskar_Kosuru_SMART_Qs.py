@@ -29,7 +29,7 @@ plt
 
 # %%
 
-# Question: How does the frequency of violations issued change throughout different times of the day?
+# Question: How does the frequency of violations issued change throughout different times of a day?
 
 import matplotlib.dates as mdates
 
