@@ -100,23 +100,6 @@ plt.xlabel('Issuing Agency Code')
 plt.ylabel('Fine Amount')
 plt.show()
 
-# %%
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-
-# Calculate Pearson correlation coefficient
-correlation = data['PLATE_STATE'].corr(data['FINE_AMOUNT'])
-print("Pearson correlation coefficient:", correlation)
-
-# Create a scatter plot
-plt.figure(figsize=(10, 6))
-sns.scatterplot(x='PLATE_STATE', y='FINE_AMOUNT', data=data)
-plt.title('Scatter Plot of Fine Amount by State')
-plt.xlabel('State')
-plt.ylabel('Fine Amount')
-plt.xticks(rotation=90) 
-plt.show()
 
 
 #%%
@@ -240,5 +223,34 @@ print(coefficients_df)
 
 # %%
 
+
+# %%
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+
+
+features = ['XCOORD', 'YCOORD', 'ISSUE_DATE', 'ISSUE_TIME', 'ISSUING_AGENCY_NAME', 'VIOLATION_CODE']
+X = data[features]
+y = data['FINE_AMOUNT']
+
+
+X = pd.get_dummies(X)  
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print("Mean Squared Error:", mse)
+print("R-squared:", r2)
 
 # %%
