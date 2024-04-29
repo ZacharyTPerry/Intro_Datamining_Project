@@ -58,3 +58,58 @@ plt.xticks(range(len(time_window_counts)), ['12 AM - 4 AM', '4 AM - 8 AM', '8 AM
 
 plt.tight_layout()
 plt.show()
+
+#%%
+# Question: Can we predict the fine amount using certain features in the dataset and see what features are influencing the fine amount significantly?
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import mean_squared_error,mean_absolute_error, r2_score
+
+
+df = pd.DataFrame(data)
+
+
+# Preprocess categorical variables using Label Encoding
+categorical_features = ['VIOLATION_CODE','ISSUE_TIME', 'ISSUE_DATE']
+label_encoders = {}
+
+for feature in categorical_features:
+    le = LabelEncoder()
+    df[feature] = le.fit_transform(df[feature])
+    label_encoders[feature] = le  # Store label encoder for each feature
+
+# Define the features and the target variable
+X = df[['XCOORD', 'YCOORD', 'LATITUDE', 'LONGITUDE'] + categorical_features]
+y = df['FINE_AMOUNT']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Initialize the DecisionTreeRegressor
+dt_regressor = DecisionTreeRegressor(random_state=42)
+
+# Fit the model on the training data
+dt_regressor.fit(X_train, y_train)
+
+# Make predictions on the test data
+y_pred = dt_regressor.predict(X_test)
+
+# Calculate the Mean Squared Error (MSE) on the test data
+mse = mean_squared_error(y_test, y_pred)
+
+# Calculate  the Root Mean Squared Error (RMSE) on the test data
+rmse = np.sqrt(mse)
+
+# Calculate Mean Absolute Error (MAE) 
+mae = mean_absolute_error(y_test, y_pred)
+
+# Calculate R-squared (R^2) score
+r_squared = r2_score(y_test, y_pred)
+
+# Print the MSE,RMSE, MAE and R-squared score
+print(f"Mean Squared Error: {mse}")
+print(f"Root Mean Squared Error: {rmse}")
+print(f"Mean Absolute Error (MAE): {mae}")
+print(f"R-squared (R^2) Score: {r_squared}")
